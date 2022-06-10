@@ -13,7 +13,7 @@ import {
 } from '@solana/web3.js';
 import fs from 'mz/fs';
 import path from 'path';
-import * as borsh from 'borsh';
+import * as borsh from 'borsh'; //borsh library to do serialization of data
 
 import {getPayer, getRpcUrl, createKeypairFromFile} from './utils';
 
@@ -32,6 +32,7 @@ let payer: Keypair;
  */
 let programId: PublicKey;
 
+// This is the address of the account storing the state we are going to update
 /**
  * The public key of the account we are saying hello to
  */
