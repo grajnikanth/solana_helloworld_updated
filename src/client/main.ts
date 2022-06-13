@@ -19,7 +19,8 @@ async function main() {
   // Determine who pays for the fees
   await establishPayer();
 
-  // Check if the program has been deployed
+  // Check if the program has been deployed and check if account exists
+  // if account does not exist, then create a new account
   await checkProgram();
 
   // Say hello to an account

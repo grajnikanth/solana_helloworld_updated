@@ -14,6 +14,10 @@ import {
 import fs from 'mz/fs';
 import path from 'path';
 import * as borsh from 'borsh'; //borsh library to do serialization of data
+import * as BufferLayout from '@solana/buffer-layout'; // library to create byte array
+import {Buffer} from 'buffer';
+
+
 
 import {getPayer, getRpcUrl, createKeypairFromFile} from './utils';
 
@@ -136,6 +140,8 @@ export async function establishPayer(): Promise<void> {
  */
 export async function checkProgram(): Promise<void> {
   // Read program id from keypair file
+  // keypair file is the .json file. 
+  // from smart contract keypair file obtain the programId which is the pubkey
   try {
     const programKeypair = await createKeypairFromFile(PROGRAM_KEYPAIR_PATH);
     programId = programKeypair.publicKey;
@@ -181,6 +187,8 @@ export async function checkProgram(): Promise<void> {
       GREETING_SIZE,
     );
 
+    // if the account does not exist, create new account with the greetedPubKey by sending a transaction
+    // to blockchain
     const transaction = new Transaction().add(
       SystemProgram.createAccountWithSeed({
         fromPubkey: payer.publicKey,
@@ -204,13 +212,60 @@ export async function sayHello(): Promise<void> {
   const instruction = new TransactionInstruction({
     keys: [{pubkey: greetedPubkey, isSigner: false, isWritable: true}],
     programId,
-    data: Buffer.alloc(0), // All instructions are hellos
+    data: createSetInstruction(), // get the instruction data from buffer
   });
   await sendAndConfirmTransaction(
     connection,
     new Transaction().add(instruction),
     [payer],
   );
+}
+
+// function create the instruction byte array buffer to send over the network to 
+// smart contract. 
+// Increment case
+// instruction: 0 == Increment in the HelloInstruction Enum in smart contract
+function createIncrementInstruction(): Buffer {
+  // create a Buffer schema first using struct() function on BufferLayout
+  // 'instruction' is a id to identify the element and is used to map the byte array
+  const layout = BufferLayout.struct([BufferLayout.u8('instruction')]);
+  // Initialize size of the byte array
+  // layout.span gives you size of schema defined - 8 bit integer in this case
+  const data = Buffer.alloc(layout.span);
+  // populate the buffer with data. value which it is mapped and byte array where we want
+  // data to be stored
+  layout.encode({instruction: 0}, data);
+  return data;
+}
+
+function createDecrementInstruction(): Buffer {
+  // create a Buffer schema first using struct() function on BufferLayout
+  // 'instruction' is a id to identify the element and is used to map the byte array
+  const layout = BufferLayout.struct([BufferLayout.u8('instruction')]);
+  // Initialize size of the byte array
+  // layout.span gives you size of schema defined - 8 bit integer in this case
+  const data = Buffer.alloc(layout.span);
+  // populate the buffer with data. value which it is mapped and byte array where we want
+  // data to be stored
+  layout.encode({instruction: 1}, data);
+  return data;
+}
+
+function createSetInstruction(): Buffer {
+  // create a Buffer schema first using struct() function on BufferLayout
+  // 'instruction' is a id to identify the element and is used to map the byte array
+  const layout = BufferLayout.struct([
+    BufferLayout.u8('instruction'),
+    BufferLayout.u32('value') // somehow this u32 will be converted to four u8 elements 
+    // an array
+  ]);
+  // Initialize size of the byte array
+  // layout.span gives you size of schema defined - 8 bit integer in this case
+  const data = Buffer.alloc(layout.span);
+  // populate the buffer with data. value which it is mapped and byte array where we want
+  // data to be stored
+  layout.encode({instruction: 2, value: 100}, data);
+  return data;
 }
 
 /**

@@ -8,6 +8,10 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
+pub mod instruction;
+use crate::instruction::HelloInstruction;
+
+
 /// Define the type of state stored in accounts
 /// GreetingAccount is an account for storing data
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
@@ -25,10 +29,12 @@ pub fn process_instruction(
     // accounts is a slice of an array. It is a pointer to a slice of array stored in 
     // stack memory
     accounts: &[AccountInfo], // The account to say hello to
-    _instruction_data: &[u8], // Ignored, all helloworld instructions are hellos
+    // we will use the instruction_data to create custom instructions for this smart
+    // contract
+    instruction_data: &[u8], 
 ) -> ProgramResult {
     msg!("Hello World Rust program entrypoint");
-
+    let instruction = HelloInstruction::unpack(instruction_data)?;
     // Iterating accounts is safer than indexing
     let accounts_iter = &mut accounts.iter();
 
@@ -50,7 +56,13 @@ pub fn process_instruction(
     // Increment and store the number of times the account has been greeted
     // account.data is in binary format
     let mut greeting_account = GreetingAccount::try_from_slice(&account.data.borrow())?;
-    greeting_account.counter += 1;
+
+    match instruction {
+        HelloInstruction::Increment => {greeting_account.counter += 1;},
+        HelloInstruction::Decrement => {greeting_account.counter -= 1;},
+        HelloInstruction::Set(val) => {greeting_account.counter = val;},
+    }
+  
     // Once the data in the account is updated, we save it by serializing it 
     // using Borsh library
     // [..] represents the entire slice I guess in this case
