@@ -34,6 +34,7 @@ pub fn process_instruction(
     instruction_data: &[u8], 
 ) -> ProgramResult {
     msg!("Hello World Rust program entrypoint");
+    msg!("Instruction data {:?}", instruction_data);
     let instruction = HelloInstruction::unpack(instruction_data)?;
     // Iterating accounts is safer than indexing
     let accounts_iter = &mut accounts.iter();
@@ -82,10 +83,14 @@ mod test {
 
     #[test]
     fn test_sanity() {
+        // Below code creates an account to test
         let program_id = Pubkey::default();
         let key = Pubkey::default();
         let mut lamports = 0;
-        let mut data = vec![0; mem::size_of::<u32>()];
+        // create a vector of the size equal to the struct GreetingAccount
+        // in this case we only have one field "counter" which is u32. So
+        // below the mem size is defining that data represting this is of the same size
+        let mut data = vec![0; mem::size_of::<u32>()]; 
         let owner = Pubkey::default();
         let account = AccountInfo::new(
             &key,
@@ -97,29 +102,110 @@ mod test {
             false,
             Epoch::default(),
         );
-        let instruction_data: Vec<u8> = Vec::new();
+        
+        // creating an array of bytes from u32 = 100 using little endian format of creating
+        // the byte array
+        let arr = u32::to_le_bytes(100);
+        println!("arr of bytes is {:?}", arr);
+        // define an array of 5 elements all equal to 2 for now
+        let mut instruction_data = [2;5];
+        // add the arr[i] elements to the instruction_data array
+        for i in 0..4 {
+            instruction_data[i+1] = arr[i];
+        }
 
         let accounts = vec![account];
 
+        // Checking to verify that initially the counter == 0
         assert_eq!(
             GreetingAccount::try_from_slice(&accounts[0].data.borrow())
                 .unwrap()
                 .counter,
             0
         );
+
         process_instruction(&program_id, &accounts, &instruction_data).unwrap();
         assert_eq!(
             GreetingAccount::try_from_slice(&accounts[0].data.borrow())
                 .unwrap()
                 .counter,
-            1
+            100
         );
+
+        // test that counter = 101 if a new insutruction of increment is sent now
+        let instruction_data = [0; 5];
         process_instruction(&program_id, &accounts, &instruction_data).unwrap();
         assert_eq!(
             GreetingAccount::try_from_slice(&accounts[0].data.borrow())
                 .unwrap()
                 .counter,
-            2
+            101
+        );
+
+        // test that counter = 100 if a new insutruction of decrement is sent now
+        let instruction_data = [1; 5];
+        process_instruction(&program_id, &accounts, &instruction_data).unwrap();
+        assert_eq!(
+            GreetingAccount::try_from_slice(&accounts[0].data.borrow())
+                .unwrap()
+                .counter,
+            100
         );
     }
+
+    // Test for crash
+    #[test]
+    #[should_panic]
+    fn test_crash() {
+        // Below code creates an account to test
+        let program_id = Pubkey::default();
+        let key = Pubkey::default();
+        let mut lamports = 0;
+        // create a vector of the size equal to the struct GreetingAccount
+        // in this case we only have one field "counter" which is u32. So
+        // below the mem size is defining that data represting this is of the same size
+        let mut data = vec![0; mem::size_of::<u32>()]; 
+        let owner = Pubkey::default();
+        let account = AccountInfo::new(
+            &key,
+            false,
+            true,
+            &mut lamports,
+            &mut data,
+            &owner,
+            false,
+            Epoch::default(),
+        );
+        
+        // creating an array of bytes from u32 = 100 using little endian format of creating
+        // the byte array
+        let arr = u32::to_le_bytes(100);
+        println!("arr of bytes is {:?}", arr);
+        // define an array of 5 elements all equal to 2 for now
+        let mut instruction_data = [1;5];
+        // add the arr[i] elements to the instruction_data array
+        for i in 0..4 {
+            instruction_data[i+1] = arr[i];
+        }
+
+        let accounts = vec![account];
+
+        // Checking to verify that initially the counter == 0
+        assert_eq!(
+            GreetingAccount::try_from_slice(&accounts[0].data.borrow())
+                .unwrap()
+                .counter,
+            0
+        );
+
+        // the below should cause panic in smart contract as the counter
+        // will be forced to be a negative number. The
+        // [should_panic] macro is placed to pass this test that panic happens
+        process_instruction(&program_id, &accounts, &instruction_data).unwrap();
+ 
+
+
+    }
+
+
 }
